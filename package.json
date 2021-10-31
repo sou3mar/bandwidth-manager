@@ -1,0 +1,17 @@
+{
+  "name": "bandwidth-manager",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Amirmohsen Ekhtiary",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^0.24.0",
+    "chalk": "^4.1.2",
+    "fs": "^0.0.1-security",
+    "simple-ssh": "^1.0.0"
+  }
+}
