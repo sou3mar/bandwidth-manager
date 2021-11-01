@@ -39,8 +39,8 @@ axios.get(
         out: info.bandwidth.out[todayDate]
     }
 
-    let neededOut = todayUsage.in * config.prefs.ratio
-    let trafficToSync = neededOut - todayUsage.out
+    let neededOut       =   todayUsage.in * config.prefs.ratio
+    let trafficToSync   =   neededOut - todayUsage.out
 
     console.log(chalk.green(`[INFO] Data parsed. Hostname: ${info.hostname}`))
     console.log(chalk.blue(`[CONFIG] Download to Upload ratio: 1:${config.prefs.ratio}`))
@@ -57,45 +57,52 @@ axios.get(
 
     if(trafficToSync < 1000) {
         chunks = 0
-        littleChunk = Math.ceil(littleChunk) * 1000000
-        console.log(chalk.white(`[INFO] Can create a (<1 GB) file.`))
+        littleChunk = Math.ceil(trafficToSync) * 1000000
     } else {
         chunks = trafficToSync / 1000
-        littleChunk = (chunks % 1) * 1000000000
+        littleChunk = Math.ceil((chunks % 1) * 1000000000)
         chunks = Math.floor(chunks)
-        console.log(chalk.white(`[INFO] Can create ${chunks} x 1 GBs file.`))
     }
 
-    console.log(chalk.white(`[INFO] ${chunks} x 1 GB & 1 x ${littleChunk} MBs file.`))
+    console.log(chalk.white(`[INFO] ${chalk.bold(chunks)} x 1 GBs & 1 x ${chalk.bold(littleChunk / 1000000)} MBs file.`))
 
     // SSH CONNECTION
-    console.log(chalk.blue(`[CONFIG] SSH connection to ${config.credentials.user}@${config.credentials.host}`))
+    if(config.credentials.user.toLowerCase() === 'root') { // checking user access
+        console.log(chalk.bold.red(`[WARN] Looks like you are using root user. It's not recommended at all!`))
+    }
+
+    console.log(chalk.blue(`[CONFIG] Initializing SSH connection to ${config.credentials.user}@${config.credentials.host}`))
 
     const conn = new ssh(config.credentials)
 
     if(littleChunk > 0) {
-        let command = `cd /tmp && head -c ${littleChunk} /dev/urandom >chunk-${startTime}.zip`
+        conn.exec(`rm -rf ${config.prefs.sampleFile}`)
+
+        let command = `head -c ${littleChunk} /dev/urandom >chunk-${startTime}.zip`
+
         console.log(chalk.white(`[INFO] Executing command: ${command}`))
-        
-        conn.exec(command)
-        conn.exec(`cd /tmp && curl -F 'n=@/tmp/chunk-${startTime}.zip' -F '${config.prefs.uploadData}' ${config.prefs.uploadURL} --progress-bar --verbose --insecure | tee /dev/null`, {
-            out: console.log.bind(console)
-        })
+        conn.exec(command).exec(`curl -F 'n=@/tmp/chunk-${startTime}.zip' -F '${config.prefs.uploadData}' ${config.prefs.uploadURL} --progress-bar --verbose --insecure | tee /dev/null`, {
+            out: stdout => {
+                console.log(chalk.cyan(`[RESPONSE] chunk-${startTime}.zip => ${stdout}`))
+            }
+        }).exec(`rm -rf chunk-${startTime}.zip`)
     }
 
     if(chunks > 0) {
-        conn.exec(`cd /tmp && head -c 1000000000 /dev/urandom >${config.prefs.sampleFile}`)
+        let command = `head -c 1000000000 /dev/urandom >${config.prefs.sampleFile}`
+        console.log(chalk.white(`[INFO] Executing command: ${command}`))
+        conn.exec(command) // creates a 1 GBs dummy file
+        let uploaded = 0
 
         for(i = 0; i < chunks; i++) {
-            conn.exec(`cd /tmp && curl -F 'n=@/tmp/${config.prefs.sampleFile}' -F '${config.prefs.uploadData}' ${config.prefs.uploadURL} --progress-bar --verbose --insecure | tee /dev/null`, {
-                out: console.log.bind(console)
+            conn.exec(`curl -F 'n=@/tmp/${config.prefs.sampleFile}' -F '${config.prefs.uploadData}' ${config.prefs.uploadURL} --progress-bar --verbose --insecure | tee /dev/null`, {
+                out: stdout => {
+                    ++uploaded
+                    console.log(chalk.cyan(`[RESPONSE] ${config.prefs.sampleFile}:${uploaded}/${chunks} => ${stdout}`))
+                }
             })
         }
     }
-
-    conn.exec(`rm -rf chunk-${startTime}.zip`, {
-        out: console.log.bind(console)
-    })
 
     console.log(chalk.white(`[INFO] Starting upload process.`))
     conn.start() // start running command queue
