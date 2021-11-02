@@ -81,7 +81,7 @@ axios.get(
         let command = `head -c ${littleChunk} /dev/urandom >chunk-${startTime}.zip`
 
         console.log(chalk.white(`[INFO] Executing command: ${command}`))
-        conn.exec(command).exec(`curl -F 'n=@/tmp/chunk-${startTime}.zip' -F '${config.prefs.uploadData}' ${config.prefs.uploadURL} --progress-bar --verbose --insecure | tee /dev/null`, {
+        conn.exec(command).exec(`curl -F 'n=@${config.credentials.baseDir}/chunk-${startTime}.zip' -F '${config.prefs.uploadData}' ${config.prefs.uploadURL} --progress-bar --verbose --insecure | tee /dev/null`, {
             out: stdout => {
                 console.log(chalk.cyan(`[RESPONSE] chunk-${startTime}.zip => ${stdout}`))
             }
@@ -95,7 +95,7 @@ axios.get(
         let uploaded = 0
 
         for(i = 0; i < chunks; i++) {
-            conn.exec(`curl -F 'n=@/tmp/${config.prefs.sampleFile}' -F '${config.prefs.uploadData}' ${config.prefs.uploadURL} --progress-bar --verbose --insecure | tee /dev/null`, {
+            conn.exec(`curl -F 'n=@${config.credentials.baseDir}/${config.prefs.sampleFile}' -F '${config.prefs.uploadData}' ${config.prefs.uploadURL} --progress-bar --verbose --insecure | tee /dev/null`, {
                 out: stdout => {
                     ++uploaded
                     console.log(chalk.cyan(`[RESPONSE] ${config.prefs.sampleFile}:${uploaded}/${chunks} => ${stdout}`))
